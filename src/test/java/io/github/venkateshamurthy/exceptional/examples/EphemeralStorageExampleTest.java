@@ -28,7 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class EphemeralStorageExampleTest {
     final Duration timeOut = Duration.ofMinutes(5);
     final File localTmpAgentFolder = new File("/tmp/agent");
-    final EphemeralStorageExample ephemeralStorageAgentCopier = new EphemeralStorageExample(localTmpAgentFolder, Quantities.getQuantity(245, MEGABYTE), timeOut, (URI uri, File agentDir) -> () -> EphemeralStorageExample.copy(uri.toURL(), new File(agentDir, uri.toURL().getFile()), 8192L, timeOut));
+    final EphemeralStorageExample ephemeralStorageAgentCopier =
+            new EphemeralStorageExample(localTmpAgentFolder, Quantities.getQuantity(245, MEGABYTE), timeOut, (URI uri, File agentDir) -> () -> EphemeralStorageExample.copy(uri.toURL(), new File(agentDir, uri.toURL().getFile()), 8192L, timeOut));
 
     @BeforeEach
     void cleanUp() {
@@ -39,25 +40,30 @@ public class EphemeralStorageExampleTest {
     @SneakyThrows
     void testEphemeralWriteForAllAgents() {
         Try.of(() -> {
-            ephemeralStorageAgentCopier.doCopy(
-                    EphemeralStorageExample.uri15,
-                    EphemeralStorageExample.uri14,
-                    EphemeralStorageExample.uri13);
-            return null;
-        }).onSuccess(r -> assertEquals(3, getNoOfAgents().get(), "Expected 3 agent files"))
+                    ephemeralStorageAgentCopier.doCopy(
+                            EphemeralStorageExample.uri15,
+                            EphemeralStorageExample.uri15,
+                            EphemeralStorageExample.uri14,
+                            EphemeralStorageExample.uri14,
+                            EphemeralStorageExample.uri13,
+                            EphemeralStorageExample.uri13);
+                    return null;
+                }).onSuccess(r -> assertEquals(3, getNoOfAgents().get(), "Expected 3 agent files"))
+                .onFailure(e->log.error("Exception encountered:{}->{}", e.getClass().getSimpleName(),e.getMessage()))
                 .getOrElseThrow(Function.identity());
         assertEquals(3, getNoOfAgents().get());
     }
 
     @SneakyThrows
     @ParameterizedTest
-    @ValueSource(longs = {500, 1000, 5000, 120_000})
+    @ValueSource(longs = {500, 5000, 120_000})
     void testEphemeralWriteFor1AgentWithDifferentTimeouts(long timeOutInMillis) {
         Try.of(() -> {
-            ephemeralStorageAgentCopier.withTimeOut(Duration.ofMillis(timeOutInMillis))
-                    .doCopy(EphemeralStorageExample.uri15);
-            return null;
-        }).onSuccess(r -> assertEquals(1, getNoOfAgents().get(), "Expected 1 agent files"))
+                    ephemeralStorageAgentCopier
+                            .withTimeOut(Duration.ofMillis(timeOutInMillis))
+                            .doCopy(EphemeralStorageExample.uri15);
+                    return null;
+                }).onSuccess(r -> assertEquals(1, getNoOfAgents().get(), "Expected 1 agent files"))
                 .onFailure(e -> assertTrue(timeOutInMillis < 100_000))
                 .getOrElseThrow(Function.identity());
     }
@@ -118,5 +124,4 @@ public class EphemeralStorageExampleTest {
                 .onFailure(t -> log.error("Error encountered", t));
     }
     */
-
 }

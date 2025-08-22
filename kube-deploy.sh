@@ -1,9 +1,12 @@
 #!/bin/bash
 # First do a brew install docker minikube colima qemu
-# Next do a  mvn clean package
-# Next do a ./kube-deploy.sh
+#export DOCKER_PATH=/opt/homebrew/bin/docker
+#export HOMEBREW_PATH=/opt/homebrew/bin
+#export PATH=$DOCKER_PATH:$HOMEBREW_PATH:$PATH
+# Next do a ./kube-deploy.sh (which calls anyways mvn clean package)
 set -e
 source $HOME/.profile
+mvn clean package
 
 # Usage: ./deploy.sh <job-name> <image-name> <job-yaml> <dockerfile> [--keep]
 
@@ -43,11 +46,17 @@ kubectl logs -f $POD || true
 
 STATUS=$(kubectl get pod $POD -o jsonpath='{.status.phase}')
 echo "✅ Job Pod $POD finished with status: $STATUS"
-sleep 60
-if [ "$STATUS" != "Completed" ]; then
-  echo "⚠️ Job did not complete, so let us describe the pod..."
+sleep 10 #ttl in kube-job should be referred to alter this
+
+STATUS=$(kubectl get pod $POD -o jsonpath='{.status.phase}')
+if [ "$STATUS" = "Completed" ] || [ "$STATUS" = "Succeeded" ]; then
+  echo "⚠️ Job did complete/succeeded. Will close the pod"
+else
+  echo "Job did not complete so let us describe the pod..."
   kubectl describe pod $POD
 fi
+sleep 8 #ttl in kube-job should be referred to alter this  (10+8 seconds before ttl=20 seconds expire))
+
 if [ "$KEEP" == false ]; then
   echo "🧹 Cleaning up job and pod: $JOB_NAME"
   kubectl delete job $JOB_NAME

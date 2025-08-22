@@ -7,38 +7,46 @@ import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.util.Config;
-import io.micrometer.common.util.StringUtils;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.vavr.control.Either;
 import io.vavr.control.Try;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
-import lombok.With;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import tech.units.indriya.AbstractUnit;
+import tech.units.indriya.ComparableQuantity;
 import tech.units.indriya.quantity.Quantities;
 
 import javax.measure.Quantity;
 import javax.measure.Unit;
 import javax.measure.quantity.Dimensionless;
 import java.io.*;
+import java.math.BigInteger;
 import java.net.URI;
 import java.net.URL;
 import java.nio.channels.Channels;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * This is simple / trivial demonstration of how epheral storage with memory on kubernates container can be understood.
@@ -51,10 +59,11 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 @RequiredArgsConstructor
 @With
 public class EphemeralStorageExample {
+    private final ConcurrentMap<File, ReentrantLock> lockMap=new ConcurrentHashMap<>();
     private final File destinationFolder;// = new File("/tmp/agent");
     private final Quantity<Dimensionless> MIN_FREE_SPACE;// = Quantities.getQuantity(243, MEGABYTE);
     private final Duration timeOut;// = Duration.ofSeconds(300L);
-    private final BiFunction<URI, File, Callable<Either<Exception, Long>>> callableMaker;
+    private final BiFunction<URI, File, Callable<Either<Exception, ComparableQuantity<Dimensionless>>>> callableMaker;
 
     /**
      * Will need few of these Units for calculating free space and comparison etc
@@ -72,23 +81,60 @@ public class EphemeralStorageExample {
             "Horizon-Enterprise-Agent/8.14.0/12994395200/agent.tar");
     public static final URI uri13 = URI.create("https://softwareupdate.omnissa.com/hcs-agents-stable/packages/" +
             "Horizon-Enterprise-Agent/8.13.0/10002333884/agent.tar");
+    private static final ConcurrentMap<URI, Payload> inputMap = new ConcurrentHashMap<>() {
+        {
+            put(uri15, new Payload(Quantities.getQuantity(242862080L, BYTE), "sha256",
+                    "c36614e224880dba410ccd51c54cc029bbd105dbba5f3aadca57783d0f6a0420"));
+            put(uri14, new Payload(Quantities.getQuantity(257064960L, BYTE), "sha256",
+                    "e015add0d7216e67335ed3f505331634c27874f747f861460cee6fb7b7d5dcda"));
+            put(uri13, new Payload(Quantities.getQuantity(255825920L, BYTE), "sha256",
+                    "0a7af36ba4ab21c7a5293ef8475e329ac81c3cbba122186488cb60a56597be17"));
+        }
+    };
 
-    private void testAgentCopy(final URI uri, final File agentDir) {
-        var callable = callableMaker.apply(uri, agentDir);
+    @SneakyThrows
+    private Either<Exception, ComparableQuantity<Dimensionless>> testAgentCopy(final URI uri, final File agentDir) {
+        int counter = 0;
+        final File destFile = new File(agentDir, uri.toURL().getFile());
+        final ReentrantLock lock = lockMap.computeIfAbsent(destFile, f->new ReentrantLock());
+
+        while(!lock.tryLock(5, SECONDS) && counter++ < 3){
+            log.warn("Trying to acquire lock on {}...",destFile);
+        };
+
         var start = System.currentTimeMillis();
-        var single = Single.fromCallable(callable).subscribeOn(Schedulers.io())
-                .timeout(timeOut.toMillis() + 100L, MILLISECONDS, Schedulers.computation())
-                .doOnEvent((result, error) -> {
-                    if (error != null) log.error("Outer Error encountered:", error);
-                    else if (result.isLeft()) log.error("Inner Error encountered:", result.getLeft());
-                    else log.info("Copied in {} (ms) and bytes written={}",
-                                (System.currentTimeMillis() - start), result.get());
-                });
-        Try.ofSupplier(single::blockingGet)
-                .onFailure(t -> log.error("Time spent:{} ms. Blocking Get Error encountered:", (System.currentTimeMillis() - start), t));
+        return  Try.<Either<Exception, ComparableQuantity<Dimensionless>>>ofCallable(() -> {
+                if(!lock.isLocked()) {
+                    return Either.left(new IllegalStateException("Unable to get file download lock on " + destFile));
+                }
+                log.info("Lock obtained on {}", destFile);
+
+                if (destFile.exists()) {
+                    return inputMap.get(uri).checkFile(destFile);
+                }
+                log.warn("File does not exists for {}!, so good we will go ahead download",destFile);
+
+                Callable<Either<Exception, ComparableQuantity<Dimensionless>>> callable =  callableMaker.apply(uri, agentDir);
+                Single<Either<Exception, ComparableQuantity<Dimensionless>>> single = Single
+                        .fromCallable(callable)
+                        .subscribeOn(Schedulers.io())
+                        .timeout(timeOut.toMillis() + 100L, MILLISECONDS, Schedulers.computation())
+                        .doOnEvent((result, error) -> {
+                            if (error != null) log.error("Outer Error encountered:", error);
+                            else if (result.isLeft()) log.error("Inner Error encountered:", result.getLeft());
+                            else log.info("Copied {} in {} (ms) and bytes written={}", destFile,
+                                        (System.currentTimeMillis() - start), result.get());
+                        });
+                return single.blockingGet();
+            })
+        .onFailure(t -> log.error("Time spent:{} ms. Blocking Get Error encountered:", (System.currentTimeMillis() - start), t))
+        .andFinally(lock::unlock)
+        .get();
     }
 
-    public static Either<Exception, Long> copy(URL in, File out, long bufferSize, Duration timeout) throws IOException {
+    static Either<Exception, ComparableQuantity<Dimensionless>> copy(@NonNull final URL in, @NonNull final File out,
+                                                                     final long bufferSize, @NonNull final Duration timeout)
+            throws IOException {
         log.info("Copying agent file:{} to {},Timeout:{} ms", in.getFile(), out, timeout.toMillis());
         if (out.isDirectory())
             return Either.left(new IllegalArgumentException("'out' argument needs to a be (java.io.)File to be written." +
@@ -97,14 +143,24 @@ public class EphemeralStorageExample {
 
         final AtomicLong position = new AtomicLong(0L);
         final long start = System.currentTimeMillis();
+        final AtomicReference<FileLock> fileLockRef = new AtomicReference<>();
 
         return Try.withResources(
                         () -> Channels.newChannel(in.openStream()),
                         () -> new FileOutputStream(out, false).getChannel())
-                .of((urlin, fout) -> {
+                  .of((urlin, fileChannel) -> {
+                    // Get exclusive file lock to avoid any overwrite on this file (by other process/thread)
+                    fileLockRef.set(fileChannel.tryLock());
+                    if (fileLockRef.get() == null) {
+                        throw new IllegalStateException(
+                                "Some other thread/process has locked up the file: " + out,
+                                new OverlappingFileLockException());
+                    }
+                    log.info("Obtained exclusive lock on file:{}", out);
+
                     long bytes = 0L;
                     do {
-                        bytes = fout.transferFrom(urlin, position.get(), bufferSize);
+                        bytes = fileChannel.transferFrom(urlin, position.get(), bufferSize);
                         position.addAndGet(bytes);
                         //log.info("Copied {} so far..{}", in.getFile(), position.get());
                         final long currentTime = System.currentTimeMillis();
@@ -116,13 +172,14 @@ public class EphemeralStorageExample {
                             );
                         } else if (timedOut) {
                             throw new TimeoutException(Thread.currentThread().getName() +
-                                    "; Timedout and cancelled out at position: " + position.get() +
+                                    "; Timed out and cancelled out at position: " + position.get() +
                                     "; time duration(ms): " + (currentTime - start)
                             );
                         }
                     } while (bytes > 0);
-                    return position.get();
+                    return Quantities.getQuantity(position.get(), BYTE);
                 })
+                .andFinallyTry(() -> { if (fileLockRef.get() != null) {Try.run(()->fileLockRef.get().close());}} )
                 .toEither()
                 .mapLeft(t -> (t instanceof Exception) ? (Exception) t : new Exception(t));
     }
@@ -163,22 +220,26 @@ public class EphemeralStorageExample {
         cleanupDirectory(destinationFolder);//"/agent/hcs-agents-stable");
         // Assumes a good 750-800MB free space
         Consumer<URI> runner = uri -> Try.run(() -> downloadAgent(uri, destinationFolder))
-                .onFailure(e->log.error("Error downloading {}", uri,e));
-        Arrays.stream(uris).forEach(runner::accept);
+                .onFailure(e -> log.error("Error downloading {}", uri,e));
+        Arrays.stream(uris).parallel().forEach(runner);
     }
 
     private void downloadAgent(URI uri, File volumeMount) throws IOException {
-        if(volumeMount.exists())volumeMount.mkdirs();
+        if(!volumeMount.exists()){
+            boolean created = volumeMount.mkdirs();
+            log.info("volumeMount created:{}",created);
+        }
         var spaceMap = getDiskSpace(volumeMount);
+
         if (Comparator
-                .comparing((Quantity q) -> q.getValue().longValue())
+                .comparing((Quantity<?> q) -> q.getValue().longValue())
                 .compare(spaceMap.getOrDefault("Available", ZERO_SPACE).to(KILOBYTE), MIN_FREE_SPACE.to(KILOBYTE)) > 0) {
             log.info("Downloading uri:{}", uri);
-            Try.run(() -> testAgentCopy(uri, volumeMount)).onFailure(e ->
-                    log.error("Error writing {} with Exception:{}", uri, e.getMessage()));
+            Try.ofCallable(testAgentCopy(uri, volumeMount)::get)
+                    .onSuccess(fileLength -> log.info("File copied length:{}",fileLength.to(KILOBYTE)))
+                    .onFailure(e -> log.error("Error writing {} with Exception:{}", uri, e.getMessage()));
         } else {
-            log.error("No space left on device!!!(Used up:{}) to write {}",
-                    spaceMap.get("Used"), uri);
+            log.error("No space left on device!!!(Used up:{}) to write {}", spaceMap.get("Used"), uri);
         }
     }
 
@@ -242,5 +303,36 @@ public class EphemeralStorageExample {
             ephemeralStorageAgentCopier.doCopy();
         }
         log.info("**** COMPLETED ******");
+    }
+
+    @RequiredArgsConstructor
+    @Getter
+    private static class Payload {
+        final ComparableQuantity<Dimensionless> fileLength;
+        final String checkSumType;
+        final String checkSum;
+        //DigestUtils.sha256Hex(Files.)
+        final ReentrantLock lock = new ReentrantLock();
+
+        public Either<Exception, ComparableQuantity<Dimensionless>> checkFile(@NonNull File destFile) {
+            var destFileSize = Quantities.getQuantity(destFile.length(), BYTE );
+            if (destFileSize.isEquivalentTo(fileLength) && isEqualCheckSum(computeHashHexString(destFile))) {
+                log.info("File on disk matched with expected length and checksum for {}",destFile);
+                return Either.right(fileLength);
+            }
+            return Either.left(new IllegalStateException("Length / Checksum did not match for "+destFile+" "));
+        }
+
+        protected String computeHashHexString(final File destFile) {
+            return Try.of(() -> {
+                var hash = MessageDigest.getInstance(checkSumType)
+                        .digest(Files.readAllBytes(destFile.toPath()));
+                return new BigInteger(1, hash).toString(16).toLowerCase();
+            }).get();
+        }
+
+        protected boolean isEqualCheckSum(final String checkSum) {
+            return StringUtils.equalsIgnoreCase(this.checkSum, checkSum);
+        }
     }
 }
