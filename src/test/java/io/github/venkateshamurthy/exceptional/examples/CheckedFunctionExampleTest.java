@@ -232,7 +232,7 @@ public class CheckedFunctionExampleTest {
                                 IOException.class,          x->new ParseException("",0))),
                             new Pair[]{
                                 Pair.of((String) null      , Either.left(Exception.class)),
-                                Pair.of("a"            , Either.left(SQLException.class)),
+                                Pair.of("a"            , Either.left(ParseException.class)),
                                 Pair.of("b"            , Either.left(ParseException.class)),
                                 Pair.of("gbugytfvyv"   , Either.right(10))}
                             ),

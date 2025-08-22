@@ -60,7 +60,7 @@ metadata:
   labels:
     app: exception-retry-example
 spec:
-  ttlSecondsAfterFinished: 60 # 10 mins to wait before killing the job
+  ttlSecondsAfterFinished: 20 # period to wait before killing the job
   backoffLimit: 3          # how many times to retry if job fails
   template:
     metadata:
@@ -76,7 +76,7 @@ spec:
         - name: agent-volume
           emptyDir:
             medium: Memory          # 👈 uses RAM instead of disk
-            sizeLimit: "768Mi"      # 👈 optional: cap memory usage
+            sizeLimit: "1024Mi"      # 👈 optional: cap memory usage
       containers:
         - name: exception-retry-example
           image: exception-retry-example:latest
