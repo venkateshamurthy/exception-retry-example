@@ -79,9 +79,9 @@ public class CheckedBiFunctionExampleTest {
 
         // A TriFunction taking a Function and its inputs to return an Either
         TriFunction<CheckedBiFunction<String, String, Integer>, String, String, Either<Throwable, Integer>>
-                mappedTrier = (f, s, u) -> f.tryWrap(s, u)
-                .mapException(AccountLockedException.class, override)
-                .mapException(IOException.class, override)
+                mappedTrier = (f, s, u) ->
+                f.tryWrap(s, u)
+                .mapExceptions( Map.of(AccountLockedException.class, override, IOException.class,override))
                 .toEither();
 
         var bEither = mappedTrier.apply(function,"ab", "b");
@@ -213,7 +213,7 @@ public class CheckedBiFunctionExampleTest {
                                 IOException.class,          x->new ParseException("",0))),
                             new Pair[]{
                                 Pair.of(new String[]{null,null} , Either.left(Exception.class)),
-                                Pair.of(new String[]{"a", "a"}  , Either.left(SQLException.class)),
+                                Pair.of(new String[]{"a", "a"}  , Either.left(ParseException.class)),//due to hierarchical sort
                                 Pair.of(new String[]{"ab", "b"} , Either.left(ParseException.class)),
                                 Pair.of(new String[]{"gbugy","tfvyv"}   , Either.right(10))}
                             ),
