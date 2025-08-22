@@ -1,13 +1,14 @@
-package io.github.venkateshamurthy.exceptional.examples;
+package io.github.venkateshamurthy.exceptional.examples.kubernetes;
 
+import io.github.venkateshamurthy.exceptional.RxTry;
 import io.vavr.control.Try;
 import lombok.SneakyThrows;
+import lombok.experimental.ExtensionMethod;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import tech.units.indriya.quantity.Quantities;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,64 +16,80 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Comparator;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static io.github.venkateshamurthy.exceptional.examples.EphemeralStorageExample.MEGABYTE;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static io.github.venkateshamurthy.exceptional.RxRunnable.toRunnable;
+import static io.github.venkateshamurthy.exceptional.examples.kubernetes.Storage.UNIT.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @Slf4j
+@ExtensionMethod(RxTry.class)
 public class EphemeralStorageExampleTest {
-    final Duration timeOut = Duration.ofMinutes(5);
-    final File localTmpAgentFolder = new File("/tmp/agent");
-    final EphemeralStorageExample ephemeralStorageAgentCopier = new EphemeralStorageExample(localTmpAgentFolder, Quantities.getQuantity(245, MEGABYTE), timeOut, (URI uri, File agentDir) -> () -> EphemeralStorageExample.copy(uri.toURL(), new File(agentDir, uri.toURL().getFile()), 8192L, timeOut));
+
+    private static final URI[] uris = Agents.getUris();
+    private static final Map<URI, Agents> inputMap = Agents.getUriToAgentsMap();
+    private final Duration timeOut = Duration.ofMinutes(5);
+    private final File localTmpAgentFolder = new File("/tmp/agent");
+    private final EphemeralStorageExample ephemeralStorageAgentCopier = EphemeralStorageExample.builder()
+        .MIN_FREE_SPACE(MB.of(245))
+        .timeOut(timeOut)
+        .build()
+        .destinationFolder(localTmpAgentFolder);
+
 
     @BeforeEach
     void cleanUp() {
-        EphemeralStorageExample.cleanupDirectory(localTmpAgentFolder);
+        FileUtils.cleanupDirectory(localTmpAgentFolder);
     }
 
-    @Test
+    @ParameterizedTest(name = "Test Different agent download:{index} whether parallel:{0}")
+    @ValueSource(booleans = {false, true})
     @SneakyThrows
-    void testEphemeralWriteForAllAgents() {
-        Try.of(() -> {
-            ephemeralStorageAgentCopier.doCopy(
-                    EphemeralStorageExample.uri15,
-                    EphemeralStorageExample.uri14,
-                    EphemeralStorageExample.uri13);
-            return null;
-        }).onSuccess(r -> assertEquals(3, getNoOfAgents().get(), "Expected 3 agent files"))
+    void testEphemeralWriteForAllAgents(boolean isParallel) {
+        final int countOfFiles = (EphemeralStorageExample.maxAgentsOfAType + 4)/*2AV, 2DEM, 3HzE*/;
+        toRunnable(() -> ephemeralStorageAgentCopier.doCopy(uris)).tryWrap()
+                .onSuccess(r -> assertEquals(countOfFiles, getNoOfAgents().size(), "Expected " + countOfFiles + " agent files"))
+                .onFailure(e -> log.error("Exception encountered:{}->{}", e.getClass().getSimpleName(), e.getMessage()))
                 .getOrElseThrow(Function.identity());
-        assertEquals(3, getNoOfAgents().get());
     }
 
     @SneakyThrows
-    @ParameterizedTest
-    @ValueSource(longs = {500, 1000, 5000, 120_000})
+    @ParameterizedTest(name = "Test same agent download:{index} with timeout value in milliseconds:{0}")
+    @ValueSource(longs = {50, 200_000})
     void testEphemeralWriteFor1AgentWithDifferentTimeouts(long timeOutInMillis) {
-        Try.of(() -> {
-            ephemeralStorageAgentCopier.withTimeOut(Duration.ofMillis(timeOutInMillis))
-                    .doCopy(EphemeralStorageExample.uri15);
-            return null;
-        }).onSuccess(r -> assertEquals(1, getNoOfAgents().get(), "Expected 1 agent files"))
-                .onFailure(e -> assertTrue(timeOutInMillis < 100_000))
-                .getOrElseThrow(Function.identity());
+        var uri = Agents.HZE15.getUri();
+        var payload = inputMap.get(uri);
+        toRunnable(() -> ephemeralStorageAgentCopier.withTimeOut(Duration.ofMillis(timeOutInMillis))
+                .destinationFolder(localTmpAgentFolder).doCopy(uri)).tryWrap()
+            .onSuccess(r -> {
+                if (timeOutInMillis==50L)
+                    assertThrows(IllegalStateException.class, ()->{throw payload.checkFile(localTmpAgentFolder).getLeft();});
+                else
+                    assertEquals(Storage.ZERO, payload.checkFile(localTmpAgentFolder).get() );})
+            .onFailure(e -> {
+                assertTrue(ExceptionUtils.hasCause(e, TimeoutException.class));
+                assertEquals(50, timeOutInMillis);
+            })
+            .getOrElseThrow(Function.identity());
     }
 
-    private AtomicInteger getNoOfAgents() {
-        AtomicInteger noOfAgents = new AtomicInteger(0);
+    private List<File> getNoOfAgents() {
+        List<File> listFiles = new ArrayList<>();
         if (localTmpAgentFolder.exists()) {
             try (Stream<Path> paths = Files.walk(localTmpAgentFolder.toPath())) {
-                paths.sorted(Comparator.reverseOrder()).map(Path::toFile).filter(File::isFile) // Do not delete the base folder but remove all its children contents
-                        .forEach(f -> noOfAgents.incrementAndGet());
+                paths.map(Path::toFile).filter(File::isFile).forEach(listFiles::add);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        }
-        return noOfAgents;
+        } else log.error("Destination folder is absent:{}", localTmpAgentFolder);
+
+        log.info("List of files:{}",listFiles);
+        return listFiles;
     }
 /*
     @SneakyThrows
@@ -118,5 +135,4 @@ public class EphemeralStorageExampleTest {
                 .onFailure(t -> log.error("Error encountered", t));
     }
     */
-
 }
