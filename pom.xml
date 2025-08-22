@@ -10,8 +10,10 @@
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.source>${maven.compiler.release}</maven.compiler.source>
+        <maven.compiler.target>${maven.compiler.release}</maven.compiler.target>
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
-        <lombok.version>1.18.36</lombok.version>
+        <lombok.version>1.18.40</lombok.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <dependencies>
@@ -43,12 +45,12 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.17.0</version>
+            <version>3.18.0</version>
         </dependency>
         <dependency>
             <groupId>io.kubernetes</groupId>
             <artifactId>client-java</artifactId>
-            <version>11.0.0</version>
+            <version>11.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
