@@ -1,0 +1,109 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-reader
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: read-nodes-binding
+subjects:
+  - kind: ServiceAccount
+    name: exception-retry-sa
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: node-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: exception-retry-sa
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: app-reader
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods", "configmaps", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-resources-binding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: exception-retry-sa
+    namespace: default
+roleRef:
+  kind: Role
+  name: app-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: exception-retry-example-job
+  labels:
+    app: exception-retry-example
+spec:
+  ttlSecondsAfterFinished: 60 # 10 mins to wait before killing the job
+  backoffLimit: 3          # how many times to retry if job fails
+  template:
+    metadata:
+      labels:
+        app: exception-retry-example
+    spec:
+      securityContext: # 👈 pod-level
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+      serviceAccountName: exception-retry-sa   # 👈 use SA
+      volumes:
+        - name: agent-volume
+          emptyDir:
+            medium: Memory          # 👈 uses RAM instead of disk
+            sizeLimit: "768Mi"      # 👈 optional: cap memory usage
+      containers:
+        - name: exception-retry-example
+          image: exception-retry-example:latest
+          imagePullPolicy: Never
+          volumeMounts:
+            - name: agent-volume
+              mountPath: /agent
+          resources:
+            requests:
+              memory: "1024Mi"
+              cpu: "0.5"
+              ephemeral-storage: "1024Mi"
+            limits:
+              memory: "1536Mi"
+              cpu: "1"
+              ephemeral-storage: "1024Mi"
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+      restartPolicy: Never   # 👈 important for batch jobs
