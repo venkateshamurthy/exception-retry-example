@@ -24,7 +24,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.*;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import static io.github.venkateshamurthy.exceptional.Delayer.FIBONACCI;
@@ -32,7 +35,7 @@ import static io.github.venkateshamurthy.exceptional.RxFunction.toFunction;
 import static io.github.venkateshamurthy.exceptional.RxFunction.toUnaryOperator;
 import static io.github.venkateshamurthy.exceptional.RxSupplier.toSupplier;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 @Slf4j
 @ExtensionMethod({RxFunction.class, RxSupplier.class, RxTry.class})
