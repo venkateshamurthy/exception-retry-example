@@ -1,0 +1,4 @@
+<Configuration status="warn" packages="org.apache.logging.log4j.test">
+    <Appenders><List name="MyList"/></Appenders>
+    <Loggers><Root level="debug"><AppenderRef ref="MyList"/></Root></Loggers>
+</Configuration>
