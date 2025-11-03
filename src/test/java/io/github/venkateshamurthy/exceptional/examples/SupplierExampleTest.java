@@ -111,7 +111,7 @@ public class SupplierExampleTest {
             var expected = expecteds[i];
             var obtained = g.apply(f)
                     .tryWrap().toEither().mapLeft(Object::getClass)
-                    .peekLeft(e -> log.info("{}", e)).peek(e -> log.info("{}", e));
+                    .peekLeft(e -> log.debug("{}", e)).peek(e -> log.debug("{}", e));
 
             assertEquals(expected.isLeft(), obtained.isLeft());
             assertEquals(expected.isRight(), obtained.isRight());

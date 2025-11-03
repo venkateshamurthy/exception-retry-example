@@ -125,7 +125,7 @@ public class CheckedBiFunctionExampleTest {
                     var expected = pair.getRight();
                     var obtained = toCheckedSupplier(() -> g.apply(f).apply(input[0], input[1]))
                             .tryWrap().toEither().mapLeft(Object::getClass)
-                            .peekLeft(e->log.info("{}", e)).peek(e->log.info("{}", e));
+                            .peekLeft(e->log.debug("{}", e)).peek(e->log.debug("{}", e));
 
                     assertEquals(expected.isLeft(), obtained.isLeft(), testName);
                     assertEquals(expected.isRight(), obtained.isRight(), testName);

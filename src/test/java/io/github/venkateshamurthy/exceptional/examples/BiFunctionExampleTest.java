@@ -119,7 +119,7 @@ public class BiFunctionExampleTest {
                     var expected = pair.getRight();
                     var obtained = toSupplier(() -> g.apply(f).apply(input[0], input[1]))
                             .tryWrap().toEither().mapLeft(Object::getClass)
-                            .peekLeft(e->log.info("{}", e)).peek(e->log.info("{}", e));
+                            .peekLeft(e->log.debug("{}", e)).peek(e->log.debug("{}", e));
 
                     assertEquals(expected.isLeft(), obtained.isLeft());
                     assertEquals(expected.isRight(), obtained.isRight());

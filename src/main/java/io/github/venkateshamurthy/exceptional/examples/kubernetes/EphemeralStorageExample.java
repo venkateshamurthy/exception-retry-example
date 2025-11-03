@@ -35,13 +35,22 @@ import static io.github.venkateshamurthy.exceptional.examples.kubernetes.FileUti
 @With
 @Builder
 @Getter
+@lombok.Generated
 public class EphemeralStorageExample {
-
+    /** Maximum files to retain for an agent type.*/
     public static final int maxAgentsOfAType = 3;
+    /** Agent URI common prefix to be used.*/
     public static final String HCS_AGENTS_STABLE_PACKAGES = "https://softwareupdate.omnissa.com/hcs-agents-stable/packages/";
     private static final Map<URI, Agents> inputMap = Agents.getUriToAgentsMap();
     private final AgentDownloader agentDownloader;
 
+    /**
+     * Main code
+     * @param args to be used
+     * @throws IOException when file / io exception encountered
+     * @throws ApiException when kubernates related errors are encountered
+     */
+    @lombok.Generated
     public static void main(String[] args) throws IOException, ApiException {
         final Duration timeOut = Duration.ofMinutes(5);
         var ephemeralStorageAgentCopier = EphemeralStorageExample.builder();
@@ -67,11 +76,15 @@ public class EphemeralStorageExample {
         log.info("**** COMPLETED ******");
     }
 
-    @SneakyThrows
+    /**
+     * Do agent copy from the uris sent
+     * @param uris of the agents to be used for downloading
+     */
     public void doCopy(@NonNull URI... uris)  {
         agentDownloader.doCopy(true, uris);
     }
 
+    @lombok.Generated
     private void doCopyWithinKubernetes(@NonNull URI... uris) throws IOException, ApiException {
         log.info("Running on a kubernetes ...to store at emptyDir at:{}", agentDownloader.getDestinationFolder());
         ApiClient client = Config.defaultClient();

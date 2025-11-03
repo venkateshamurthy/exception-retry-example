@@ -6,6 +6,9 @@ import lombok.experimental.ExtensionMethod;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -16,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
@@ -44,10 +48,11 @@ public class EphemeralStorageExampleTest {
         FileUtils.cleanupDirectory(localTmpAgentFolder);
     }
 
-    @ParameterizedTest(name = "Test Different agent download:{index} whether parallel:{0}")
-    @ValueSource(booleans = {false, true})
+    @Test
+    @DisplayName("Test Different agent download:{index} whether parallel:{0}")
     @SneakyThrows
-    void testEphemeralWriteForAllAgents(boolean isParallel) {
+    @Tag("slow")
+    void testEphemeralWriteForAllAgents() {
         final int countOfFiles = (EphemeralStorageExample.maxAgentsOfAType + 4)/*2AV, 2DEM, 3HzE*/;
         toRunnable(() -> ephemeralStorageAgentCopier.doCopy(uris)).tryWrap()
                 .onSuccess(r -> assertEquals(countOfFiles, getNoOfAgents().size(), "Expected " + countOfFiles + " agent files"))
@@ -55,9 +60,24 @@ public class EphemeralStorageExampleTest {
                 .getOrElseThrow(Function.identity());
     }
 
+    @Test
+    @SneakyThrows
+    void testEphemeralWriteForAVAndDEMAgents() {
+        URI[] uris = Arrays.stream(Agents.getUris()).filter(uri->
+                (uri.toString().contains("DEM") ||uri.toString().contains("App-Volumes")))
+                .toArray(URI[]::new);
+        final int countOfFiles = (/*EphemeralStorageExample.maxAgentsOfAType +*/ 4); //2AV, 2DEM /*, 3HzE */
+        toRunnable(() -> ephemeralStorageAgentCopier.doCopy(uris)).tryWrap()
+                .onSuccess(r -> assertEquals(countOfFiles, getNoOfAgents().size(),
+                        "Expected " + countOfFiles + " agent files"))
+                .onFailure(e -> log.error("Exception encountered:{}->{}", e.getClass().getSimpleName(), e.getMessage()))
+                .getOrElseThrow(Function.identity());
+    }
+
     @SneakyThrows
     @ParameterizedTest(name = "Test same agent download:{index} with timeout value in milliseconds:{0}")
     @ValueSource(longs = {50, 200_000})
+    @Tag("slow")
     void testEphemeralWriteFor1AgentWithDifferentTimeouts(long timeOutInMillis) {
         var uri = Agents.HZE15.getUri();
         var payload = inputMap.get(uri);

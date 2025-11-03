@@ -34,11 +34,22 @@ import static io.github.venkateshamurthy.exceptional.RxFunction.toCheckedFunctio
 import static io.github.venkateshamurthy.exceptional.examples.kubernetes.Storage.UNIT.B;
 import static io.github.venkateshamurthy.exceptional.examples.kubernetes.Storage.UNIT.KB;
 
+/**
+ * A common utility to deal with File download
+ */
 @Slf4j
 @ExtensionMethod({RxTry.class, Eithers.class})
 public class FileUtils {
     private static final CheckedFunction<Path, Path> checkedCreateDirectories = toCheckedFunction(Files::createDirectories);
 
+    /**
+     * Copy file method
+     * @param in the source {@link URL}
+     * @param out the destination {@link File} where the file is copied to
+     * @param bufferSize is a {@link Storage} instance indicating the buffer size for copying
+     * @param timeout is a {@link Duration} representing the timeout for the copy operation
+     * @return {@link Either} with the exception encountered or the bytes of storage accomplished
+     */
     public static Either<Exception, Storage> copy(@NonNull final URL in,
                                                   @NonNull final File out,
                                                   @NonNull final Storage bufferSize,

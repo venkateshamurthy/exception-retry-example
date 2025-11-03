@@ -32,11 +32,15 @@ import static org.springframework.http.HttpStatus.*;
 public final class Faults extends DynamicEnum<Faults> implements ExceptionCode {
     /** The field name and the {@link #name() should match to see this close to an enum.*/
     public static final Faults UNKNOWN = new Faults("UNKNOWN", StringUtils.EMPTY, UNPROCESSABLE_ENTITY);
+    /** A file locked error.*/
     public static final Faults FILE_LOCKED_ERR = new Faults("FILE_LOCKED_ERR",
             "Destination file is already locked. Cannot Lock again", DESTINATION_LOCKED);
+    /** File length and checksum error..*/
     public static final Faults FILE_LNCK_ERR = new Faults("FILE_LNCK_ERR",
             "File length/checksum did not match", UNPROCESSABLE_ENTITY);
+    /** A generic validation error.*/
     public static final Faults VALIDATION_ERR = new Faults("VALIDATION_ERR", "Invalid Input", BAD_REQUEST);
+    /** A generic internal server/service error.*/
     public static final Faults SERVER_ERR = new Faults("SERVER_ERR", "Internal server error", INTERNAL_SERVER_ERROR);
 
     @JsonProperty
@@ -47,9 +51,11 @@ public final class Faults extends DynamicEnum<Faults> implements ExceptionCode {
     @Schema(description = "A HTTP status such as BAD_REQUEST")
     private final HttpStatus status;
 
+    /** {@inheritDoc}.*/
     @JsonProperty
     public String name() {return super.name();}
 
+    /** The declaring field name and the {@link #name() should match to see this close to an enum.*/
     @Builder
     private Faults(String name, String description, HttpStatus status) {
         super(name);
@@ -57,25 +63,29 @@ public final class Faults extends DynamicEnum<Faults> implements ExceptionCode {
         this.status = status;
     }
 
+    /**
+     * Returns an array of {@link Faults} registered with this {@link io.github.venkateshamurthy.enums.DynamicEnum}.
+     * @return an array of {@code Faults}
+     */
     public static Faults[] values() {
         return DynamicEnum.values(Faults.class, Faults[]::new);
     }
 
+    /**
+     * Get the default mapper set by the parent class
+     * @return ObjectMapper
+     */
     public static ObjectMapper getDefaultMapper() {
         return DynamicEnum.getDefaultMapper(Faults.class);
     }
 
+    /**
+     * Return Faults corresponding to the name passed
+     * @param name for which the Faults is to be returned
+     * @return Faults or {@link #UNKNOWN} if there is no match found for the given name
+     */
     @JsonCreator
     public static Faults valueOf(String name) {
         return Try.of(()->DynamicEnum.valueOf(Faults.class, name)).getOrElse(UNKNOWN);
-    }
-
-    public static void main(String[] args) {
-        var fault = Faults.builder()
-                .name("DB_FAULT")
-                .description("DB Fault")
-                .status(BAD_REQUEST)
-                .build();
-        Arrays.stream(Faults.values()).forEach(f->log.info("{}",f));
     }
 }

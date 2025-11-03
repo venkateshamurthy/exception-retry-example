@@ -1,6 +1,8 @@
 package io.github.venkateshamurthy.exceptional.examples.errors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.collect.Sets;
+import io.github.venkateshamurthy.enums.DynamicEnum;
 import io.github.venkateshamurthy.exceptional.exceptions.CommonRuntimeException;
 import io.github.venkateshamurthy.exceptional.exceptions.ExceptionCode;
 import lombok.extern.slf4j.Slf4j;
@@ -18,13 +20,17 @@ import java.text.MessageFormat;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.github.venkateshamurthy.exceptional.examples.errors.Faults.SERVER_ERR;
 import static io.github.venkateshamurthy.exceptional.exceptions.DetailsMessageFormatters.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 /**
  * <b>Note:</b>This is just an experimental test and bears no significant usage value. this test might as well break if the
@@ -138,6 +144,20 @@ public class ErrorsTest {
         errEx = error.toCommonRTE().setDetailedMessage(NAMEDARGS.format(template2, arg1, arg2)).setTimeStamp(now);
         fltEx = fault.toCommonRTE().setDetailedMessage(NAMEDARGS.format(template2, arg1, arg2)).setTimeStamp(now);
         assertExceptions(fltEx, errEx);
+    }
+
+    @Test
+    void testNewFaults() {
+        int size = Errors.values().length;
+        var fault = Faults.builder()
+                .name("DB_FAULT")
+                .description("DB Fault")
+                .status(BAD_REQUEST)
+                .build();
+        assertEquals(size + 1, Faults.values().length);
+        assertEquals(Set.of(fault.name()), Sets.difference(
+                Arrays.stream(Faults.values()).map(Faults::name).collect(Collectors.toSet()),
+                Arrays.stream(Errors.values()).map(Errors::name).collect(Collectors.toSet())));
     }
 
     private static void assertExceptions(CommonRuntimeException fltEx, CommonRuntimeException errEx) {
