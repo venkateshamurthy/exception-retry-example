@@ -4,7 +4,8 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import tech.units.indriya.AbstractUnit;
-import tech.units.indriya.quantity.NumberQuantity;
+import tech.units.indriya.ComparableQuantity;
+import tech.units.indriya.quantity.Quantities;
 
 import javax.measure.Unit;
 import javax.measure.quantity.Dimensionless;
@@ -12,9 +13,22 @@ import javax.measure.quantity.Dimensionless;
 import static io.github.venkateshamurthy.exceptional.examples.kubernetes.Storage.UNIT.B;
 
 /**
- * A {@link NumberQuantity} of type {@link Dimensionless} to model storage.
+ * A class to model storage.
  */
-public class Storage extends NumberQuantity<Dimensionless> {
+@RequiredArgsConstructor
+@Getter
+public class Storage {
+    /** the quantity inner modeling storage.*/
+    final ComparableQuantity<Dimensionless> inner;
+
+    /**
+     * Constructor
+     * @param value the numerical value
+     * @param unit the unit of this value
+     */
+    Storage(Number value, Unit<Dimensionless> unit) {
+        inner = Quantities.getQuantity(value, unit);
+    }
     /**
      * Creates Storage Quantity instance  in bytes
      * @param value to be treated as bytes
@@ -42,6 +56,7 @@ public class Storage extends NumberQuantity<Dimensionless> {
      * @return Storage
      */
     public static Storage gb(long value) {return new Storage(value, UNIT.GB);}
+
 
     /**
      * An enum of UNITs used in storage
@@ -71,7 +86,7 @@ public class Storage extends NumberQuantity<Dimensionless> {
          * @return value of this storage.
          */
         public long toLong(final @NonNull Storage quantity) {
-            return quantity.to(unit).getValue().longValue();
+            return quantity.inner.to(unit).getValue().longValue();
         }
 
         /**
@@ -84,24 +99,6 @@ public class Storage extends NumberQuantity<Dimensionless> {
         }
     }
 
-    /**
-     * Builds {@link Storage}
-     * @param number a value of {@link Number} type
-     * @param unit the {@link UNIT} to be used while building for the value
-     * @param sc the {@link Scale} being used
-     */
-    protected Storage(Number number, Unit<Dimensionless> unit, Scale sc) {
-        super(number, unit, sc);
-    }
-
-    /**
-     * Builds {@link Storage}
-     * @param number a value of {@link Number} type
-     * @param unit the {@link UNIT} to be used while building for the value
-     */
-    protected Storage(Number number, Unit<Dimensionless> unit) {
-        super(number, unit);
-    }
 
     /**
      * Builds {@link Storage}
@@ -118,6 +115,42 @@ public class Storage extends NumberQuantity<Dimensionless> {
      */
     public long getBytes(){
         return B.toLong(this);
+    }
+
+    /**
+     * Check if the current storage is greater than the passed storage
+     * @param storage to be checked with
+     * @return true if the current value is greater than the passed
+     */
+    public boolean isGreaterThan(Storage storage){
+        return inner.isGreaterThan(storage.inner);
+    }
+
+    /**
+     * Check if the current storage is greater than or equal to the passed storage
+     * @param storage to be checked with
+     * @return true if the current value is greater than r equal to the passed
+     */
+    public boolean isGreaterThanOrEqualTo(Storage storage){
+        return inner.isGreaterThanOrEqualTo(storage.inner);
+    }
+
+    /**
+     * Check if the current storage is equivalent to the passed storage
+     * @param storage to be checked with
+     * @return true if the current value is equivalent to the passed
+     */
+    public boolean isEquivalentTo(Storage storage){
+        return inner.isEquivalentTo(storage.inner);
+    }
+
+    /**
+     * convert value to passed in unit
+     * @param unit passed
+     * @return ComparableQuantity
+     */
+    public ComparableQuantity<Dimensionless> to(Unit<Dimensionless> unit){
+        return inner.to(unit);
     }
 
     /** A ZERO unit for convenience.*/

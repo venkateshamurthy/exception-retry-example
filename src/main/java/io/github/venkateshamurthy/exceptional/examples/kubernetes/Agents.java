@@ -108,12 +108,18 @@ public enum Agents {
         return checkSum.equalsIgnoreCase(this.checkSum);
     }
 
-    /** a map of URI to Agents.*/
+    /**
+     * Returns a map of URI to Agents.
+     * @return map
+     */
     public static Map<URI, Agents> getUriToAgentsMap() {
         return Arrays.stream(values()).collect(Collectors.toMap(Agents::getUri, Function.identity()));
     }
 
-    /** An array of URIs to iterate through while downloading.*/
+    /**
+     * An array of URIs to iterate through while downloading.
+     * @return URI[] corresponding to agent
+     */
     public static URI[] getUris() {
         return Arrays.stream(values()).map(Agents::getUri).toArray(URI[]::new);
     }

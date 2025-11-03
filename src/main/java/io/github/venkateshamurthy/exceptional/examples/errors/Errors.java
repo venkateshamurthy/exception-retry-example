@@ -17,7 +17,7 @@ public enum Errors implements ExceptionCode {
     /** A catchall unknown.*/
     UNKNOWN(StringUtils.EMPTY, UNPROCESSABLE_ENTITY),
     /** A file locked error.*/
-    FILE_LOCKED_ERR("Destination file is already locked. Cannot Lock again", DESTINATION_LOCKED),
+    FILE_LOCKED_ERR("Destination file is already locked. Cannot Lock again", PRECONDITION_FAILED),
     /** File length and checksum error..*/
     FILE_LNCK_ERR("File length/checksum did not match", UNPROCESSABLE_ENTITY),
     /** A generic validation error.*/

@@ -30,11 +30,11 @@ import static org.springframework.http.HttpStatus.*;
 @JsonTypeName
 @Slf4j
 public final class Faults extends DynamicEnum<Faults> implements ExceptionCode {
-    /** The field name and the {@link #name() should match to see this close to an enum.*/
+    /** The field name and the {@link #name()}  should match to see this close to an enum.*/
     public static final Faults UNKNOWN = new Faults("UNKNOWN", StringUtils.EMPTY, UNPROCESSABLE_ENTITY);
     /** A file locked error.*/
     public static final Faults FILE_LOCKED_ERR = new Faults("FILE_LOCKED_ERR",
-            "Destination file is already locked. Cannot Lock again", DESTINATION_LOCKED);
+            "Destination file is already locked. Cannot Lock again", PRECONDITION_FAILED);
     /** File length and checksum error..*/
     public static final Faults FILE_LNCK_ERR = new Faults("FILE_LNCK_ERR",
             "File length/checksum did not match", UNPROCESSABLE_ENTITY);
