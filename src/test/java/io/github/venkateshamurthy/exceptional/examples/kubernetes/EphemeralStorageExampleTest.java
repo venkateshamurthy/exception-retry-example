@@ -49,7 +49,7 @@ public class EphemeralStorageExampleTest {
     }
 
     @Test
-    @DisplayName("Test Different agent download:{index} whether parallel:{0}")
+    @DisplayName("Testing for all agents which will take considerable time")
     @SneakyThrows
     @Tag("slow")
     void testEphemeralWriteForAllAgents() {
@@ -63,6 +63,7 @@ public class EphemeralStorageExampleTest {
     @Test
     @SneakyThrows
     void testEphemeralWriteForAVAndDEMAgents() {
+        // Just pick up light weight agents like App Vol and DEM to complete the test in few seconds
         URI[] uris = Arrays.stream(Agents.getUris()).filter(uri->
                 (uri.toString().contains("DEM") ||uri.toString().contains("App-Volumes")))
                 .toArray(URI[]::new);

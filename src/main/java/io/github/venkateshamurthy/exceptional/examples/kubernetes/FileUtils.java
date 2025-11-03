@@ -121,7 +121,8 @@ public class FileUtils {
                         .map(File::delete)
                         .mapToInt(BooleanUtils::toInteger)
                         .reduce(Integer::sum);
-                log.info("Cleaned up all internal files and folder :{}", deletedFiles);
+                deletedFiles.ifPresent(deletedCount ->
+                        log.info("Cleaned up all internal files and folder :{}", deletedCount));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
