@@ -57,6 +57,11 @@ public class Storage {
      */
     public static Storage gb(long value) {return new Storage(value, UNIT.GB);}
 
+    /** {@inheritDoc}. This in specific returns only the Bytes representation of this storage*/
+    public String toString() {
+        return B.toDisplayString(this);
+    }
+
 
     /**
      * An enum of UNITs used in storage
@@ -96,6 +101,15 @@ public class Storage {
          */
         public Storage of(final long value) {
             return new Storage(value, unit);
+        }
+
+        /**
+         * Gets a displayable string for the Storage
+         * @param quantity to be displayed
+         * @return string representation.
+         */
+        public String toDisplayString(final @NonNull Storage quantity) {
+            return toLong(quantity)+" "+display;
         }
     }
 

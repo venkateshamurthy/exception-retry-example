@@ -12,6 +12,7 @@
     <version>1.0-SNAPSHOT</version>
     <properties>
         <surefire.excludedGroups>slow</surefire.excludedGroups>
+        <kubernetes-client-java.version>22.0.1</kubernetes-client-java.version>
     </properties>
 
     <dependencies>
@@ -32,7 +33,17 @@
         <dependency>
             <groupId>io.kubernetes</groupId>
             <artifactId>client-java</artifactId>
-            <version>11.0.1</version>
+            <version>${kubernetes-client-java.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.kubernetes</groupId>
+            <artifactId>client-java-api</artifactId>
+            <version>${kubernetes-client-java.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.kubernetes</groupId>
+            <artifactId>client-java-proto</artifactId>
+            <version>${kubernetes-client-java.version}</version>
         </dependency>
         <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId></dependency>
         <dependency>
@@ -49,6 +60,32 @@
     </dependencies>
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <!-- I had to redeclare with inherited as false here as the parent pom was reducing the dependency (due to
+                createDependencyReducedPom property) and this avoided some transitive jars of kubernetes client.
+                That in turn encounters no class def found error for ApiException. Given i started using 22.x.y version
+                for client-java artifact.-->
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>shade</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>io.github.venkateshamurthy.exceptional.examples.kubernetes.EphemeralStorageExample</mainClass>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>

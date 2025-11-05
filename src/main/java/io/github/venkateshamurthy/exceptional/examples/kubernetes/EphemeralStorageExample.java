@@ -96,7 +96,7 @@ public class EphemeralStorageExample {
         var podName = System.getenv("POD_NAME");//"exception-retry-example-deployment";//"nginx";
         log.info("Node Name:{}, Pod Name:{}, POd Namespace:{}", nodeName, podName, namespace);
 
-        V1Pod pod = api.readNamespacedPod(podName, namespace, null, false, false);
+        V1Pod pod = api.readNamespacedPod(podName, namespace).execute();
         for (V1Container container : Objects.requireNonNull(pod.getSpec()).getContainers()) {
             V1ResourceRequirements resources = container.getResources();
             if (resources != null) {
