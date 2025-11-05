@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://www.owasp.org/index.php/OWASP_Dependency_Check_Suppression">
+    <suppress>
+        <notes><![CDATA[
+        CVE-2015-5262 in commons-httpclient-3.1.jar is suppressed because it's a false positive in our usage.
+        ]]></notes>
+        <sha1>964cd74171f427720480efdec40a7c7f6e58426a</sha1>
+        <cve>CVE-2015-5262</cve>
+    </suppress>
+</suppressions>
