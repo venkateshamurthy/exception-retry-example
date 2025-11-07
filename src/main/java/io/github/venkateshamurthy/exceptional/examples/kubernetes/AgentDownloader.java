@@ -28,7 +28,8 @@ import java.util.function.Function;
 
 import static io.github.venkateshamurthy.exceptional.RxFunction.toCheckedBiFunction;
 import static io.github.venkateshamurthy.exceptional.examples.kubernetes.FileUtils.listFiles;
-import static io.github.venkateshamurthy.exceptional.examples.kubernetes.Storage.UNIT.KB;
+import static io.github.venkateshamurthy.exceptional.examples.kubernetes.StoreUnit.B;
+import static io.github.venkateshamurthy.exceptional.examples.kubernetes.StoreUnit.KB;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -42,7 +43,8 @@ class AgentDownloader {
     private final Storage minFreeSpace;
     private final AtomicReference<File> destinationFolder;
     private final Function<URI, Callable<Either<Exception, Storage>>> callableMaker = (URI uri) -> () ->
-            FileUtils.copy(uri.toURL(), new File(getDestinationFolder().get(), uri.toURL().getFile()), KB.of(8), getTimeOut());
+            FileUtils.copy(uri.toURL(), new File(getDestinationFolder().get(), uri.toURL().getFile()),
+                    KB.toStorage(8), getTimeOut());
     private final ConcurrentMap<URI, ReentrantLock> lockMap = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Storage> spaceMap = new ConcurrentHashMap<>();
     public static final String DEM_AGENT = "DEM-Agent";
@@ -136,7 +138,7 @@ class AgentDownloader {
                                     (System.currentTimeMillis() - start), t.getMessage()));
                     var result = trier.getOrElseThrow(Function.identity());
                     if (result.isRight() && result.get().isGreaterThan(Storage.ZERO)) {
-                        log.debug("File copied length: {}", result.get().to(KB.unit));
+                        log.debug("File copied length: {}", result.get());
                     } else if (result.isLeft()) {
                         throw result.getLeft();
                     }

@@ -31,8 +31,8 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import static io.github.venkateshamurthy.exceptional.RxFunction.toCheckedFunction;
-import static io.github.venkateshamurthy.exceptional.examples.kubernetes.Storage.UNIT.B;
-import static io.github.venkateshamurthy.exceptional.examples.kubernetes.Storage.UNIT.KB;
+import static io.github.venkateshamurthy.exceptional.examples.kubernetes.StoreUnit.B;
+import static io.github.venkateshamurthy.exceptional.examples.kubernetes.StoreUnit.KB;
 
 /**
  * A common utility to deal with File download
@@ -101,7 +101,7 @@ public class FileUtils {
                             );
                         }
                     } while (bytes > 0);
-                    return B.of(position.get()); //position always gives in bytes
+                    return B.toStorage(position.get()); //position always gives in bytes
                 })
                 .andFinallyTry(() -> {
                     var fileLock = fileLockRef.get();
@@ -174,7 +174,7 @@ public class FileUtils {
                         var head = tScanner.next();
                         if (vScanner.hasNextLong())
                             // please note you are doing a df -k above and hence this storage is STORAGE.KB
-                            map.put(head, KB.of(vScanner.nextLong()));
+                            map.put(head, KB.toStorage(vScanner.nextLong()));
                         else if (vScanner.hasNext()) vScanner.next();
                     }
                     vScanner.close();

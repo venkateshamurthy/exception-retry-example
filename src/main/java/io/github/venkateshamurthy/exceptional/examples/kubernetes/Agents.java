@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static io.github.venkateshamurthy.exceptional.examples.kubernetes.Storage.UNIT.B;
+import static io.github.venkateshamurthy.exceptional.examples.kubernetes.StoreUnit.B;
 
 /**
  * All agents to be downloaded
@@ -81,7 +81,7 @@ public enum Agents {
      */
     Agents(@NonNull final String uri, final long fileLengthInBytes, @NonNull final String checkSum256) {
         this.uri = URI.create(HCS_AGENTS_STABLE_PACKAGES + uri);
-        this.fileSize = B.of(fileLengthInBytes);
+        this.fileSize = B.toStorage(fileLengthInBytes);
         this.checkSum = checkSum256;
     }
 
@@ -94,7 +94,7 @@ public enum Agents {
     public Either<Exception, Storage> checkFile(@NonNull final File destinationFolder) {
         final File destFile = new File(destinationFolder, uri.toURL().getFile());
         if (destFile.exists() &&
-                B.of(destFile.length()).isEquivalentTo(fileSize) &&
+                B.toStorage(destFile.length()).isEquivalentTo(fileSize) &&
                 isEqualCheckSum(hexComputer.tryWrap(destFile).get())) {
             log.debug("File is present (with length and checksum matching); so not copying... {}", destFile);
             return Either.right(Storage.ZERO);
